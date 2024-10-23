@@ -1,5 +1,4 @@
 package org.firstinspires.ftc.teamcode.roadrunner;
-
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.canvas.Canvas;
@@ -45,6 +44,7 @@ import org.firstinspires.ftc.teamcode.roadrunner.messages.DriveCommandMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.MecanumCommandMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.MecanumLocalizerInputsMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.PoseMessage;
+import org.firstinspires.ftc.teamcode.subsystems.ThreeDeadWheelLocalizer;
 
 import java.lang.Math;
 import java.util.Arrays;
@@ -54,14 +54,16 @@ import java.util.List;
 @Config
 public final class MecanumDrive {
     public static class Params {
-
+        // IMU orientation
+        // TODO: fill in these values based on
+        //   see https://ftc-docs.firstinspires.org/en/latest/programming_resources/imu/imu.html?highlight=imu#physical-hub-mounting
         public RevHubOrientationOnRobot.LogoFacingDirection logoFacingDirection =
                 RevHubOrientationOnRobot.LogoFacingDirection.UP;
         public RevHubOrientationOnRobot.UsbFacingDirection usbFacingDirection =
                 RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
 
         // drive model parameters
-        public double inPerTick = 1;
+        public double inPerTick = 0.0029;
         public double lateralInPerTick = inPerTick;
         public double trackWidthTicks = 0;
 
@@ -136,7 +138,8 @@ public final class MecanumDrive {
 
             imu = lazyImu.get();
 
-
+            // TODO: reverse encoders if needed
+            //   leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         }
 
         @Override
@@ -168,7 +171,7 @@ public final class MecanumDrive {
                         DualNum.constant(0.0, 2)
                 );
             }
-            //change in heading
+
             double headingDelta = heading.minus(lastHeading);
             Twist2dDual<Time> twist = kinematics.forward(new MecanumKinematics.WheelIncrements<>(
                     new DualNum<Time>(new double[]{
@@ -212,8 +215,8 @@ public final class MecanumDrive {
             module.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
         }
 
-
-
+        // TODO: make sure your config has motors with these names (or change them)
+        //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
         leftFront = hardwareMap.get(DcMotorEx.class, "FLM");
         leftBack = hardwareMap.get(DcMotorEx.class, "BLM");
         rightBack = hardwareMap.get(DcMotorEx.class, "BRM");
@@ -225,9 +228,10 @@ public final class MecanumDrive {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // TODO: reverse motor directions if needed
-        //maybe move this to the controller
-        leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
-        leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightFront.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightBack.setDirection(DcMotorSimple.Direction.REVERSE);
+
+
         // TODO: make sure your config has an IMU with this name (can be BNO or BHI)
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
         lazyImu = new LazyImu(hardwareMap, "imu", new RevHubOrientationOnRobot(
@@ -235,7 +239,7 @@ public final class MecanumDrive {
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
 
-        localizer = new DriveLocalizer();
+        localizer = new ThreeDeadWheelLocalizer(hardwareMap, PARAMS.inPerTick);
 
         FlightRecorder.write("MECANUM_PARAMS", PARAMS);
     }
@@ -253,11 +257,7 @@ public final class MecanumDrive {
         leftBack.setPower(wheelVels.leftBack.get(0) / maxPowerMag);
         rightBack.setPower(wheelVels.rightBack.get(0) / maxPowerMag);
         rightFront.setPower(wheelVels.rightFront.get(0) / maxPowerMag);
-
     }
-
-
-
 
     public final class FollowTrajectoryAction implements Action {
         public final TimeTrajectory timeTrajectory;
